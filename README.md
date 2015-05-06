@@ -1,9 +1,19 @@
 # ustcbbs-archiver
-- Scripts to archive ustcbbs posts.
+--- Scripts to archive ustcbbs posts.
+
+使用 Python 作为爬虫，获取 ustcbbs 的信息存入本地。
+
+仍然处在开发中。
+
+## 当前成果
+
+可以将指定板块的所有文章的标题、链接存入数据库。(libbbsarchiver.py)
+
+为了防止流量过大，限制了每页暂停1秒。
 
 ## 工具
 
-*  python3
+*  python3+requests+bs4
 *  sqlite3
 
 ## 思路
@@ -26,3 +36,7 @@
 ## 授权
 
 MIT License
+
+## 作者
+
+Boyuan Yang (073plan@gmail.com)
