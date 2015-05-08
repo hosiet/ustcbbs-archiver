@@ -135,7 +135,7 @@ def updateBoardPostOnce(boardname, url, conn, auth):
     Note: url shall be from bbscon: http://bbs.ustc.edu.cn/cgi/bbscon?bn={0}&fn=XXX[&num=XXX]
     """
     post_link = url.split('?')[1].split('&')[1].split('=')[1]
-    print('debug: post_link is {0}'.format(post_link))
+    print('debug: post_link is {0}'.format(post_link), end="")
     resp = getURLResponse(url)
     soup = BeautifulSoup(resp.text)
     for post_text in soup.find_all('div'):
@@ -148,7 +148,8 @@ def updateBoardPostOnce(boardname, url, conn, auth):
             c.execute('UPDATE {0} SET `text` = ? WHERE `time` = ?'.format(boardname), (current_text, int(post_link[1:], 16)))
             conn.commit()
             break
-    pass
+    print("...done!")
+
 
 def updateBoardPost(boardname, url, conn, auth):
     c = conn.cursor()
