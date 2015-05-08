@@ -60,9 +60,8 @@ def updateBoardInfo(boardname, url, conn, auth):
         raise Exception('No metadata found.')
         sys.exit(-1)
     max_boardpost = int(i)
-    #repeat_top = (max_boardpost // 20 * 20) + 20 - (max_boardpost - ((max_boardpost // 20) * 20))
+    repeat_top = (max_boardpost // 20 * 20) + 20 - (max_boardpost - ((max_boardpost // 20) * 20))
     # for debug
-    repeat_top = 30
     print('DEBUG: repeat_top would be {0}'.format(repeat_top))
 
     #c = conn.cursor()
@@ -99,33 +98,39 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
         if 'class' in i.attrs.keys() and (i.attrs['class'] == ['M'] or i.attrs['class'] == ['new']):
             print('number:', int(i.find_all('td')[0].string))
             current_status = i.find_all('td')[1].string
-            print('status:', current_status)
+            #print('status:', current_status)
             hrefstring = i.find_all('td')[6].find_all('a')[1].attrs['href'].split('&')[1][3:]
-            print(hrefstring)
+            #print(hrefstring)
             current_type = hrefstring[0]
-            print('articletype:{0}'.format(hrefstring[0]))
-            print('link:{0}'.format(hrefstring))
+            #print('articletype:{0}'.format(hrefstring[0]))
+            #print('link:{0}'.format(hrefstring))
             current_time = int(hrefstring[1:], 16)
-            print('time:{0}'.format(current_time))
+            #print('time:{0}'.format(current_time))
             try:
                 tmpstr = i.find_all('td')[2].a.string
             except AttributeError:
                 tmpstr = i.find_all('td')[2].string
-            print('author:', tmpstr)
+            #print('author:', tmpstr)
             current_title = i.find_all('td')[6].find_all('a')[1].string
-            print('title:', i.find_all('td')[6].find_all('a')[0].string, current_title)
-            print('is_Re:', end='')
+            #print('title:', i.find_all('td')[6].find_all('a')[0].string, current_title)
+            #print('is_Re:', end='')
             if i.find_all('td')[6].find_all('a')[0].string == 'Re: ':
                 current_re = 1
-                print('yes')
+                #print('yes')
             else:
                 current_re = 0
-                print('no')
+                #print('no')
             current_thread_time = i.find_all('td')[6].a.attrs['href'].split('&')[1].split('.')[1]
-            print('thread_time:{0}'.format(current_thread_time))
-            print('thread_link:{0}'.format('M'+hex(int(current_thread_time))[2:].upper()))
+            #print('thread_time:{0}'.format(current_thread_time))
+            #print('thread_link:{0}'.format('M'+hex(int(current_thread_time))[2:].upper()))
             print('--------------')
-            c.execute('INSERT INTO {0} VALUES(?, ?, ?, ?, ?, null);'.format(boardname), (current_time, current_type, current_title, current_re, current_thread_time));
+            bypass_this = False
+            for tmpresult in c.execute('SELECT `time` FROM {0} WHERE `time` = ?;'.format(boardname), (current_time,)):
+                bypass_this = True
+                break
+            if bypass_this == False:
+                c.execute('INSERT INTO {0} VALUES(?, ?, ?, ?, ?, null);'.format(boardname), (current_time, current_type, current_title, current_re, current_thread_time));
+            bypass_this = False
 
 def updateBoardPostOnce(boardname, url, conn, auth):
     """
@@ -153,7 +158,7 @@ def updateBoardPost(boardname, url, conn, auth):
     # test
     c = conn.cursor()
     # need more knowledge about sql
-    for posttimelist in c.execute('SELECT `time` FROM {0} ORDER BY `time` ASC;'.format(boardname)):
+    for posttimelist in c.execute('SELECT `time` FROM {0} WHERE `text` is null ORDER BY `time` ASC;'.format(boardname)):
         posttime_hex = hex(posttimelist[0])[2:].upper()
         nexturl = url.format(bname=boardname, number=('M'+posttime_hex))
         updateBoardPostOnce(boardname, nexturl, conn, auth)
