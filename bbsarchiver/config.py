@@ -24,5 +24,13 @@ database_init_statement="""
             `postnumber` INTEGER NOT NULL,
             `finalpost` INTEGER NOT NULL
         );
+        CREATE TABLE `Linux` (
+            `time` INTEGER NOT NULL,
+            `type` CHAR(1) NOT NULL,
+            `title` TEXT NOT NULL,
+            `re` INTEGER NOT NULL,
+            `thread` INTEGER NOT NULL,
+            `text` TEXT
+        );
         END TRANSACTION;
         """

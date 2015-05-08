@@ -60,16 +60,18 @@ def updateBoardInfo(boardname, url, conn, auth):
         raise Exception('No metadata found.')
         sys.exit(-1)
     max_boardpost = int(i)
-    repeat_top = (max_boardpost // 20 * 20) + 20 - (max_boardpost - ((max_boardpost // 20) * 20))
+    #repeat_top = (max_boardpost // 20 * 20) + 20 - (max_boardpost - ((max_boardpost // 20) * 20))
+    # for debug
+    repeat_top = 30
     print('DEBUG: repeat_top would be {0}'.format(repeat_top))
 
-    c = conn.cursor()
-    c.execute('CREATE TABLE {0} (`time` INTEGER NOT NULL, `type` CHAR(1) NOT NULL, `title` TEXT NOT NULL, `re` INTEGER NOT NULL, `thread` INTEGER NOT NULL, `text` TEXT)'.format(boardname))
+    #c = conn.cursor()
+    #c.execute('CREATE TABLE {0} (`time` INTEGER NOT NULL, `type` CHAR(1) NOT NULL, `title` TEXT NOT NULL, `re` INTEGER NOT NULL, `thread` INTEGER NOT NULL, `text` TEXT)'.format(boardname))
     for startpage in range(1, repeat_top, 20):
         updateBoardInfoOnce(boardname, url, conn, auth, startpage)
         sys.stderr.write('finished startpage {0}.\n'.format(startpage))
         sys.stderr.write('Sleeping for 1 sec...\n')
-        time.sleep(1)
+        #time.sleep(1)
         conn.commit()
 
 
@@ -125,10 +127,39 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
             print('--------------')
             c.execute('INSERT INTO {0} VALUES(?, ?, ?, ?, ?, null);'.format(boardname), (current_time, current_type, current_title, current_re, current_thread_time));
 
-def updateBoardPost(boardname, url, conn, auth):
+def updateBoardPostOnce(boardname, url, conn, auth):
+    """
+    insert board info 
+
+    Note: url shall be from bbscon: http://bbs.ustc.edu.cn/cgi/bbscon?bn={0}&fn=XXX[&num=XXX]
+    """
+    post_link = url.split('?')[1].split('&')[1].split('=')[1]
+    print('debug: post_link is {0}'.format(post_link))
+    resp = getURLResponse(url)
+    soup = BeautifulSoup(resp.text)
+    for post_text in soup.find_all('div'):
+        if 'class' in post_text.attrs.keys() and post_text.attrs['class'] == ['post_text']:
+            current_text = post_text.__str__()
+            print('current_text is {0}'.format(current_text))
+            # something
+            c = conn.cursor()
+            c.execute('UPDATE {0} SET `text` = ? WHERE `time` = ?'.format(boardname), (current_text, int(post_link[1:], 16)))
+            conn.commit()
+            break
     pass
 
-def updateBoardAll(boardname, conn, url="http://bbs.ustc.edu.cn/cgi/bbsdoc?board={0}&start={1}", auth=None):
+def updateBoardPost(boardname, url, conn, auth):
+    #pass
+    # test
+    c = conn.cursor()
+    # need more knowledge about sql
+    for posttimelist in c.execute('SELECT `time` FROM {0} ORDER BY `time` ASC;'.format(boardname)):
+        posttime_hex = hex(posttimelist[0])[2:].upper()
+        nexturl = url.format(bname=boardname, number=('M'+posttime_hex))
+        updateBoardPostOnce(boardname, nexturl, conn, auth)
+
+
+def updateBoardAll(boardname, conn, auth=None):
     """
     update All board-related info in SQLite3 connection `conn`.
 
@@ -142,10 +173,10 @@ def updateBoardAll(boardname, conn, url="http://bbs.ustc.edu.cn/cgi/bbsdoc?board
     # FIXME auth support
 
     # Update post info
-    updateBoardInfo(boardname, url, conn, auth)
+    updateBoardInfo(boardname, url="http://bbs.ustc.edu.cn/cgi/bbsdoc?board={0}&start={1}", conn=conn, auth=auth)
 
     # Update post data
-    updateBoardPost(boardname, url, conn, auth)
+    updateBoardPost(boardname, url="http://bbs.ustc.edu.cn/cgi/bbscon?bn={bname}&fn={number}", conn=conn, auth=auth)
 
     print("All Done.")
     return True
