@@ -7,7 +7,7 @@ libbbsarchiver.py
 """
 
 # LOCAL
-from config import database_init_statement
+from bbsarchiver.config import database_init_statement
 
 # GLOBAL
 import re, sys, os

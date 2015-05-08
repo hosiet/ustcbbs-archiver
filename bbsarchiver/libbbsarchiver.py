@@ -7,17 +7,13 @@ libbbsarchiver.py
 """
 
 # LOCAL
-from config import database_init_statement
-from Database import *
+from bbsarchiver.config import database_init_statement
+from bbsarchiver.Database import *
 
 # GLOBAL
-import requests
-import urllib
-import re, sys
+import requests, urllib, re, sys, os, sqlite3, time, argparse
 from bs4 import BeautifulSoup
 from html.parser import HTMLParser
-import sqlite3
-import time
 
 def getURLResponse(url):
     """
@@ -96,7 +92,7 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
     #conn.commit()
     for i in soup.find_all('tr'):
         if 'class' in i.attrs.keys() and (i.attrs['class'] == ['M'] or i.attrs['class'] == ['new']):
-            print('number:', int(i.find_all('td')[0].string))
+            #print('number:', int(i.find_all('td')[0].string))
             current_status = i.find_all('td')[1].string
             #print('status:', current_status)
             hrefstring = i.find_all('td')[6].find_all('a')[1].attrs['href'].split('&')[1][3:]
@@ -123,7 +119,7 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
             current_thread_time = i.find_all('td')[6].a.attrs['href'].split('&')[1].split('.')[1]
             #print('thread_time:{0}'.format(current_thread_time))
             #print('thread_link:{0}'.format('M'+hex(int(current_thread_time))[2:].upper()))
-            print('--------------')
+            #print('--------------')
             bypass_this = False
             for tmpresult in c.execute('SELECT `time` FROM {0} WHERE `time` = ?;'.format(boardname), (current_time,)):
                 bypass_this = True
@@ -145,8 +141,9 @@ def updateBoardPostOnce(boardname, url, conn, auth):
     for post_text in soup.find_all('div'):
         if 'class' in post_text.attrs.keys() and post_text.attrs['class'] == ['post_text']:
             current_text = post_text.__str__()
-            print('current_text is {0}'.format(current_text))
+            #print('current_text is {0}'.format(current_text))
             # something
+            # FIXME on error do STH
             c = conn.cursor()
             c.execute('UPDATE {0} SET `text` = ? WHERE `time` = ?'.format(boardname), (current_text, int(post_link[1:], 16)))
             conn.commit()
@@ -154,17 +151,14 @@ def updateBoardPostOnce(boardname, url, conn, auth):
     pass
 
 def updateBoardPost(boardname, url, conn, auth):
-    #pass
-    # test
     c = conn.cursor()
-    # need more knowledge about sql
     for posttimelist in c.execute('SELECT `time` FROM {0} WHERE `text` is null ORDER BY `time` ASC;'.format(boardname)):
         posttime_hex = hex(posttimelist[0])[2:].upper()
         nexturl = url.format(bname=boardname, number=('M'+posttime_hex))
         updateBoardPostOnce(boardname, nexturl, conn, auth)
 
 
-def updateBoardAll(boardname, conn, auth=None):
+def updateBoardAll(boardname, conn, auth=None, onlytext=False):
     """
     update All board-related info in SQLite3 connection `conn`.
 
@@ -178,7 +172,8 @@ def updateBoardAll(boardname, conn, auth=None):
     # FIXME auth support
 
     # Update post info
-    updateBoardInfo(boardname, url="http://bbs.ustc.edu.cn/cgi/bbsdoc?board={0}&start={1}", conn=conn, auth=auth)
+    if onlytext == False:
+        updateBoardInfo(boardname, url="http://bbs.ustc.edu.cn/cgi/bbsdoc?board={0}&start={1}", conn=conn, auth=auth)
 
     # Update post data
     updateBoardPost(boardname, url="http://bbs.ustc.edu.cn/cgi/bbscon?bn={bname}&fn={number}", conn=conn, auth=auth)
@@ -191,34 +186,6 @@ def updateBoardAll(boardname, conn, auth=None):
 
 
 if __name__ == '__main__':
-    conn = initSQLiteConn(filename='archive.db', initialize=True)
-    updateBoardAll('Linux', conn)
-
-    sys.exit(0)
-    # get text
-
-    response = getURLResponse('http://bbs.ustc.edu.cn/cgi/bbsdoc?board=Linux')
-    #print(response.text)
-
-    # parse with BS4
-    soup = BeautifulSoup(response.text)
-
-    # get metadata
-    infotag = soup.div
-    tmptag = infotag.find_all('span')[3]
-    tstring = tmptag.string
-    mlist = re.findall('[0-9]*', tstring)
-    for i in mlist:
-        if i != None and i != '':
-            break
-    if i == None:
-        raise Exception('No metadata found.')
-        sys.exit(-1)
-    print(i)
-
-    # process current standard articles
-    #initSQLiteConn('a.db', True)
-    # tr class=new
-    
+    pass
 else:
     pass
