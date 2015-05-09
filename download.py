@@ -20,8 +20,10 @@ if __name__ == '__main__':
     parser.add_argument("-i", "--init-database", help="clean database and reconstruct(DANGEROUS!)", action="store_true")
     parser.add_argument("-o", "--output", help="specify output file.", default="archive.db")
     parser.add_argument("-b", "--board", help="specify download board info.")
+    parser.add_argument("-s", "--start-with", help="specify the beginning of updateBoardInfo().")
     args = parser.parse_args()
     filepath = args.output
+    startwith = int(args.start_with)
     if args.no_update_list:
         print("FLAG: WONT update list.")
         onlytext_flag = True
@@ -36,8 +38,8 @@ if __name__ == '__main__':
         init_flag = False
 
     time.sleep(2)
-    conn = initSQLiteConn(filename=filepath, initialize=init_flag)
-    updateBoardAll(args.board, conn, onlytext=onlytext_flag)
+    conn = initSQLiteConn(args.board, filename=filepath, initialize=init_flag)
+    updateBoardAll(args.board, conn, onlytext=onlytext_flag, startwith=startwith)
     sys.exit(0)
 
 else:

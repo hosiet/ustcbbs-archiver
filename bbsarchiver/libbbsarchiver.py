@@ -7,11 +7,11 @@ libbbsarchiver.py
 """
 
 # LOCAL
-from bbsarchiver.config import database_init_statement
+from bbsarchiver.config import *
 from bbsarchiver.Database import *
 
 # GLOBAL
-import requests, urllib, re, sys, os, sqlite3, time, argparse
+import requests, re, sys, os, sqlite3, time, argparse
 from bs4 import BeautifulSoup
 from html.parser import HTMLParser
 
@@ -30,7 +30,7 @@ def getURLResponse(url):
 
 # ######### SQLite3 Functions #####################
 
-def initSQLiteConn(filename='archive.db', initialize=False):
+def initSQLiteConn(boardname, filename='archive.db', initialize=False):
     try:
         conn = sqlite3.connect(filename)
     except:
@@ -39,16 +39,17 @@ def initSQLiteConn(filename='archive.db', initialize=False):
         # initialize database
         c = conn.cursor()
         c.executescript(database_init_statement)
+        c.executescript(database_init_board_statement.format(boardname))
 
     return conn
 
 # #######  SOUP metadata_retrieve func
 
-def updateBoardInfo(boardname, url, conn, auth, partial=True):
+def updateBoardInfo(boardname, url, conn, auth, partial=False, startwith=1):
     """
     更新版面信息。
 
-    partial: 不从头进行筛查
+    partial: 不从头进行筛查，仅根据原有个数筛查（不推荐）
     """
     resp = getURLResponse(url.format(boardname, 1))
     soup = BeautifulSoup(resp.text)
@@ -66,8 +67,10 @@ def updateBoardInfo(boardname, url, conn, auth, partial=True):
     repeat_top = (max_boardpost // 20 * 20) + 20 - (max_boardpost - ((max_boardpost // 20) * 20))
     print('DEBUG: repeat_top would be {0}'.format(repeat_top), file=sys.stderr)
 
+    lowstart = 1
     # 确定更新下限
     ## TODO FIXME DETERMINE CORRECT TIME!!!
+    ## TODO DELETE ME
     if partial == True:
         c = conn.cursor()
         for maxcount in c.execute('SELECT COUNT(`time`) FROM {0};'.format(boardname)):
@@ -76,8 +79,11 @@ def updateBoardInfo(boardname, url, conn, auth, partial=True):
                     maxcount[0] = 1
                 break
 
-    #c.execute('CREATE TABLE {0} (`time` INTEGER NOT NULL, `type` CHAR(1) NOT NULL, `title` TEXT NOT NULL, `re` INTEGER NOT NULL, `thread` INTEGER NOT NULL, `text` TEXT)'.format(boardname))
-    for startpage in range(maxcount[0], repeat_top, 20):
+    ## 确定更新下限
+    if lowstart == 1:
+        lowstart = startwith
+
+    for startpage in range(lowstart, repeat_top, 20):
         updateBoardInfoOnce(boardname, url, conn, auth, startpage)
         sys.stderr.write('finished startpage {0}.\n'.format(startpage))
         sys.stderr.write('Sleeping for 1 sec...\n')
@@ -107,7 +113,7 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
     #conn.commit()
     for i in soup.find_all('tr'):
         if 'class' in i.attrs.keys() and (i.attrs['class'] == ['M'] or i.attrs['class'] == ['new']):
-            current_status = i.find_all('td')[1].string
+            current_status = i.find_all('td')[1].string[0]
             hrefstring = i.find_all('td')[6].find_all('a')[1].attrs['href'].split('&')[1][3:]
             current_type = hrefstring[0]
             current_time = int(hrefstring[1:], 16)
@@ -126,7 +132,7 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
                 bypass_this = True
                 break
             if bypass_this == False:
-                c.execute('INSERT INTO {0} VALUES(?, ?, ?, ?, ?, null);'.format(boardname), (current_time, current_type, current_title, current_re, current_thread_time));
+                c.execute('INSERT INTO {0} VALUES(?, ?, ?, ?, ?, ?, null);'.format(boardname), (current_time, current_type, current_status, current_title, current_re, current_thread_time));
             bypass_this = False
 
 def updateBoardPostOnce(boardname, url, conn, auth):
@@ -161,7 +167,7 @@ def updateBoardPost(boardname, url, conn, auth):
         updateBoardPostOnce(boardname, nexturl, conn, auth)
 
 
-def updateBoardAll(boardname, conn, auth=None, onlytext=False):
+def updateBoardAll(boardname, conn, auth=None, onlytext=False, startwith=1):
     """
     update All board-related info in SQLite3 connection `conn`.
 
@@ -176,7 +182,7 @@ def updateBoardAll(boardname, conn, auth=None, onlytext=False):
 
     # Update post info
     if onlytext == False:
-        updateBoardInfo(boardname, url="http://bbs.ustc.edu.cn/cgi/bbsdoc?board={0}&start={1}", conn=conn, auth=auth)
+        updateBoardInfo(boardname, url="http://bbs.ustc.edu.cn/cgi/bbsdoc?board={0}&start={1}", conn=conn, auth=auth, startwith=startwith)
 
     # Update post data
     updateBoardPost(boardname, url="http://bbs.ustc.edu.cn/cgi/bbscon?bn={bname}&fn={number}", conn=conn, auth=auth)

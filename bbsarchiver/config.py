@@ -3,10 +3,8 @@
 import os
 import sys
 import sqlite3
-import html
 import bs4
 import requests
-import urllib
 
 """
 configuration status.
@@ -16,17 +14,20 @@ board_size = 24000
 running_status = "default"
 database_init_statement="""
         BEGIN EXCLUSIVE TRANSACTION;
-        DROP TABLE IF EXISTS `linux`;
-        DROP TABLE IF EXISTS `boards`;
-        CREATE TABLE `boards` (
+        CREATE TABLE IF NOT EXISTS `boards` (
             `name` TEXT NOT NULL,
             `cname` TEXT NOT NULL,
             `postnumber` INTEGER NOT NULL,
             `finalpost` INTEGER NOT NULL
         );
-        CREATE TABLE `Linux` (
+        END TRANSACTION;
+        """
+database_init_board_statement="""
+        BEGIN EXCLUSIVE TRANSACTION;
+        CREATE TABLE IF NOT EXISTS `{0}` (
             `time` INTEGER NOT NULL,
             `type` CHAR(1) NOT NULL,
+            `status` CHAR(1) NOT NULL,
             `title` TEXT NOT NULL,
             `re` INTEGER NOT NULL,
             `thread` INTEGER NOT NULL,
