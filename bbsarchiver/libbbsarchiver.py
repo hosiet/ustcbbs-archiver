@@ -44,7 +44,12 @@ def initSQLiteConn(filename='archive.db', initialize=False):
 
 # #######  SOUP metadata_retrieve func
 
-def updateBoardInfo(boardname, url, conn, auth):
+def updateBoardInfo(boardname, url, conn, auth, partial=True):
+    """
+    更新版面信息。
+
+    partial: 不从头进行筛查
+    """
     resp = getURLResponse(url.format(boardname, 1))
     soup = BeautifulSoup(resp.text)
     # 得到当前文章总数
@@ -55,14 +60,24 @@ def updateBoardInfo(boardname, url, conn, auth):
     if i == None:
         raise Exception('No metadata found.')
         sys.exit(-1)
+
+    # 确定更新上限
     max_boardpost = int(i)
     repeat_top = (max_boardpost // 20 * 20) + 20 - (max_boardpost - ((max_boardpost // 20) * 20))
-    # for debug
-    print('DEBUG: repeat_top would be {0}'.format(repeat_top))
+    print('DEBUG: repeat_top would be {0}'.format(repeat_top), file=sys.stderr)
 
-    #c = conn.cursor()
+    # 确定更新下限
+    ## TODO FIXME DETERMINE CORRECT TIME!!!
+    if partial == True:
+        c = conn.cursor()
+        for maxcount in c.execute('SELECT COUNT(`time`) FROM {0};'.format(boardname)):
+                print('DEBUG: total {0}.'.format(maxcount[0]))
+                if maxcount[0] == 0:
+                    maxcount[0] = 1
+                break
+
     #c.execute('CREATE TABLE {0} (`time` INTEGER NOT NULL, `type` CHAR(1) NOT NULL, `title` TEXT NOT NULL, `re` INTEGER NOT NULL, `thread` INTEGER NOT NULL, `text` TEXT)'.format(boardname))
-    for startpage in range(1, repeat_top, 20):
+    for startpage in range(maxcount[0], repeat_top, 20):
         updateBoardInfoOnce(boardname, url, conn, auth, startpage)
         sys.stderr.write('finished startpage {0}.\n'.format(startpage))
         sys.stderr.write('Sleeping for 1 sec...\n')
@@ -92,34 +107,20 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
     #conn.commit()
     for i in soup.find_all('tr'):
         if 'class' in i.attrs.keys() and (i.attrs['class'] == ['M'] or i.attrs['class'] == ['new']):
-            #print('number:', int(i.find_all('td')[0].string))
             current_status = i.find_all('td')[1].string
-            #print('status:', current_status)
             hrefstring = i.find_all('td')[6].find_all('a')[1].attrs['href'].split('&')[1][3:]
-            #print(hrefstring)
             current_type = hrefstring[0]
-            #print('articletype:{0}'.format(hrefstring[0]))
-            #print('link:{0}'.format(hrefstring))
             current_time = int(hrefstring[1:], 16)
-            #print('time:{0}'.format(current_time))
             try:
                 tmpstr = i.find_all('td')[2].a.string
             except AttributeError:
                 tmpstr = i.find_all('td')[2].string
-            #print('author:', tmpstr)
             current_title = i.find_all('td')[6].find_all('a')[1].string
-            #print('title:', i.find_all('td')[6].find_all('a')[0].string, current_title)
-            #print('is_Re:', end='')
             if i.find_all('td')[6].find_all('a')[0].string == 'Re: ':
                 current_re = 1
-                #print('yes')
             else:
                 current_re = 0
-                #print('no')
             current_thread_time = i.find_all('td')[6].a.attrs['href'].split('&')[1].split('.')[1]
-            #print('thread_time:{0}'.format(current_thread_time))
-            #print('thread_link:{0}'.format('M'+hex(int(current_thread_time))[2:].upper()))
-            #print('--------------')
             bypass_this = False
             for tmpresult in c.execute('SELECT `time` FROM {0} WHERE `time` = ?;'.format(boardname), (current_time,)):
                 bypass_this = True
@@ -132,6 +133,7 @@ def updateBoardPostOnce(boardname, url, conn, auth):
     """
     insert board info 
 
+    更新文章内容
     Note: url shall be from bbscon: http://bbs.ustc.edu.cn/cgi/bbscon?bn={0}&fn=XXX[&num=XXX]
     """
     post_link = url.split('?')[1].split('&')[1].split('=')[1]
@@ -140,8 +142,8 @@ def updateBoardPostOnce(boardname, url, conn, auth):
     soup = BeautifulSoup(resp.text)
     for post_text in soup.find_all('div'):
         if 'class' in post_text.attrs.keys() and post_text.attrs['class'] == ['post_text']:
-            current_text = post_text.__str__()
-            #print('current_text is {0}'.format(current_text))
+            current_text = post_text.prettify(formatter="html")
+            #print('DEBUG:current_text is {0}'.format(current_text))
             # something
             # FIXME on error do STH
             c = conn.cursor()
