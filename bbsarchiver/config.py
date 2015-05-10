@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 
-import os
-import sys
-import sqlite3
-import bs4
-import requests
+import os, sys, re, requests, sqlite3
 
 """
 configuration status.
 """
 target_board = "Linux"
 board_size = 24000
+debug_output = False
 running_status = "default"
 database_init_statement="""
         BEGIN EXCLUSIVE TRANSACTION;

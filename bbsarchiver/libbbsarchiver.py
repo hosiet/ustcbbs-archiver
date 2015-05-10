@@ -7,8 +7,8 @@ libbbsarchiver.py
 """
 
 # LOCAL
-from bbsarchiver.config import *
-from bbsarchiver.Database import *
+from .config import *
+from .Database import *
 
 # GLOBAL
 import requests, re, sys, os, sqlite3, time, argparse
@@ -28,6 +28,14 @@ def getURLResponse(url):
     # TODO Test for validity. e.g. bad request or something.
     return response
 
+def debugOutput(text, level='Debug', force=False):
+    try:
+        result = debug_output
+    except:
+        return
+    if debug_output == True:
+        print('[{0}]'.format(level.upper()), text, end='\n', sep=' ', flush=True, file=sys.stderr)
+
 # ######### SQLite3 Functions #####################
 
 def initSQLiteConn(boardname, filename='archive.db', initialize=False):
@@ -39,7 +47,9 @@ def initSQLiteConn(boardname, filename='archive.db', initialize=False):
         # initialize database
         c = conn.cursor()
         c.executescript(database_init_statement)
+        debugOutput('database init statement called.')
         c.executescript(database_init_board_statement.format(boardname))
+        debugOutput('board {0} init statement called.'.format(boardname))
 
     return conn
 
@@ -65,8 +75,7 @@ def updateBoardInfo(boardname, url, conn, auth, partial=False, startwith=1):
     # 确定更新上限
     max_boardpost = int(i)
     repeat_top = (max_boardpost // 20 * 20) + 20 - (max_boardpost - ((max_boardpost // 20) * 20))
-    print('DEBUG: repeat_top would be {0}'.format(repeat_top), file=sys.stderr)
-
+    debugOutput('repeat_top is {0}'.format(repeat_top))
     lowstart = 1
     # 确定更新下限
     ## TODO FIXME DETERMINE CORRECT TIME!!!
@@ -85,10 +94,9 @@ def updateBoardInfo(boardname, url, conn, auth, partial=False, startwith=1):
 
     for startpage in range(lowstart, repeat_top, 20):
         updateBoardInfoOnce(boardname, url, conn, auth, startpage)
-        sys.stderr.write('finished startpage {0}.\n'.format(startpage))
-        sys.stderr.write('Sleeping for 1 sec...\n')
-        #time.sleep(1)
+        print('\rupdating board info: {0} / {1} ...'.format(startpage, repeat_top), end='')
         conn.commit()
+    print('')
 
 
 def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
@@ -107,7 +115,6 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
     if i == None:
         raise Exception('No metadata found.')
         sys.exit(-1)
-    print('当前文章总数：{0}'.format(i))
     c = conn.cursor()
     #c.execute('INSERT INTO `boards` VALUES(?, ?, ?, ?)', ('linux', 'dd', i, 0))
     #conn.commit()
@@ -129,6 +136,7 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
             current_thread_time = i.find_all('td')[6].a.attrs['href'].split('&')[1].split('.')[1]
             bypass_this = False
             for tmpresult in c.execute('SELECT `time` FROM {0} WHERE `time` = ?;'.format(boardname), (current_time,)):
+                debugOutput('post {0} in board {1} has been logged already, skipping...'.format(current_time, boardname))
                 bypass_this = True
                 break
             if bypass_this == False:
