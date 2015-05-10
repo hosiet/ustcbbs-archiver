@@ -119,7 +119,7 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
     #c.execute('INSERT INTO `boards` VALUES(?, ?, ?, ?)', ('linux', 'dd', i, 0))
     #conn.commit()
     for i in soup.find_all('tr'):
-        if 'class' in i.attrs.keys() and (i.attrs['class'] == ['M'] or i.attrs['class'] == ['new']):
+        if 'class' in i.attrs.keys() and (i.attrs['class'] == ['M'] or i.attrs['class'] == ['new'] or i.attrs['class'] == ['G']):
             current_status = i.find_all('td')[1].string[0]
             hrefstring = i.find_all('td')[6].find_all('a')[1].attrs['href'].split('&')[1][3:]
             current_type = hrefstring[0]
