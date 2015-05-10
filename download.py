@@ -29,6 +29,7 @@ if __name__ == '__main__':
         debug_output = True
     else:
         debug_output = False
+    printCopyrightInfo()
     if args.no_update_list:
         print("FLAG: WONT update list.")
         onlytext_flag = True

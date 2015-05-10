@@ -15,6 +15,11 @@ import requests, re, sys, os, sqlite3, time, argparse
 from bs4 import BeautifulSoup
 from html.parser import HTMLParser
 
+def printCopyrightInfo():
+    print("USTCBBS Archiver v0.1 [dev]")
+    print("Copyright (c) 2015 Boyuan Yang <073plan@gmail.com>")
+    print("All Rights Reserved.\n", flush=True)
+
 def getURLResponse(url):
     """
     get response by requests.get .
