@@ -38,7 +38,7 @@ def debugOutput(text, level='Debug', force=False):
         result = debug_output
     except:
         return
-    if debug_output == True:
+    if debug_output == True or force == True:
         print('[{0}]'.format(level.upper()), text, end='\n', sep=' ', flush=True, file=sys.stderr)
 
 # ######### SQLite3 Functions #####################
@@ -133,6 +133,8 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
                 current_author = i.find_all('td')[2].a.string
             except AttributeError:
                 current_author = i.find_all('td')[2].string
+            if current_author == None:
+                debugOutput('current_author is None (parsing error)', level='Warn', force=True)
             current_title = i.find_all('td')[6].find_all('a')[1].string
             if i.find_all('td')[6].find_all('a')[0].string == 'Re: ':
                 current_re = 1
