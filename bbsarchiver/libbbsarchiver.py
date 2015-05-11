@@ -158,24 +158,26 @@ def updateBoardPostOnce(boardname, url, conn, auth):
     Note: url shall be from bbscon: http://bbs.ustc.edu.cn/cgi/bbscon?bn={0}&fn=XXX[&num=XXX]
     """
     post_link = url.split('?')[1].split('&')[1].split('=')[1]
-    print('debug: post_link is {0}'.format(post_link), end="")
+    debugOutput('processing post_link {0}..'.format(post_link))
     resp = getURLResponse(url)
     soup = BeautifulSoup(resp.text)
+    c = conn.cursor()
+    print('\rProcessing post {0} ...'.format(post_link), end='')
     for post_text in soup.find_all('div'):
         if 'class' in post_text.attrs.keys() and post_text.attrs['class'] == ['post_text']:
             current_text = post_text.prettify(formatter="html")
             #print('DEBUG:current_text is {0}'.format(current_text))
             # something
             # FIXME on error do STH
-            c = conn.cursor()
             c.execute('UPDATE {0} SET `text` = ? WHERE `time` = ?'.format(boardname), (current_text, int(post_link[1:], 16)))
             conn.commit()
             break
-    print("...done!")
 
 
 def updateBoardPost(boardname, url, conn, auth):
     c = conn.cursor()
+    for emptypostnum in c.execute('SELECT COUNT(*) FROM {0} WHERE `text` IS NULL'.format(boardname)):
+        print('{0} posts left to be done.'.format(emptypostnum[0]))
     for posttimelist in c.execute('SELECT `time` FROM {0} WHERE `text` is null ORDER BY `time` ASC;'.format(boardname)):
         posttime_hex = hex(posttimelist[0])[2:].upper()
         nexturl = url.format(bname=boardname, number=('M'+posttime_hex))
@@ -197,9 +199,11 @@ def updateBoardAll(boardname, conn, auth=None, onlytext=False, startwith=1):
 
     # Update post info
     if onlytext == False:
+        print('[Step 1] update board list.')
         updateBoardInfo(boardname, url="http://bbs.ustc.edu.cn/cgi/bbsdoc?board={0}&start={1}", conn=conn, auth=auth, startwith=startwith)
 
     # Update post data
+    print('[Step 2] update board text.')
     updateBoardPost(boardname, url="http://bbs.ustc.edu.cn/cgi/bbscon?bn={bname}&fn={number}", conn=conn, auth=auth)
 
     print("All Done.")
