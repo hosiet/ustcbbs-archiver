@@ -130,9 +130,9 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
             current_type = hrefstring[0]
             current_time = int(hrefstring[1:], 16)
             try:
-                tmpstr = i.find_all('td')[2].a.string
+                current_author = i.find_all('td')[2].a.string
             except AttributeError:
-                tmpstr = i.find_all('td')[2].string
+                current_author = i.find_all('td')[2].string
             current_title = i.find_all('td')[6].find_all('a')[1].string
             if i.find_all('td')[6].find_all('a')[0].string == 'Re: ':
                 current_re = 1
@@ -145,7 +145,7 @@ def updateBoardInfoOnce(boardname, url, conn, auth, startpage):
                 bypass_this = True
                 break
             if bypass_this == False:
-                c.execute('INSERT INTO {0} VALUES(?, ?, ?, ?, ?, ?, null);'.format(boardname), (current_time, current_type, current_status, current_title, current_re, current_thread_time));
+                c.execute('INSERT INTO {0} VALUES(?, ?, ?, ?, ?, ?, ?, null);'.format(boardname), (current_time, current_type, current_status, current_title, current_author, current_re, current_thread_time));
             bypass_this = False
 
 def updateBoardPostOnce(boardname, url, conn, auth):

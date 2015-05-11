@@ -7,7 +7,7 @@ configuration status.
 """
 target_board = "Linux"
 board_size = 24000
-debug_output = False
+#debug_output = False
 running_status = "default"
 database_init_statement="""
         BEGIN EXCLUSIVE TRANSACTION;
@@ -26,6 +26,7 @@ database_init_board_statement="""
             `type` CHAR(1) NOT NULL,
             `status` CHAR(1) NOT NULL,
             `title` TEXT NOT NULL,
+            `author` TEXT NOT NULL,
             `re` INTEGER NOT NULL,
             `thread` INTEGER NOT NULL,
             `text` TEXT
