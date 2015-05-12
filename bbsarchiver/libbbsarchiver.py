@@ -33,13 +33,21 @@ def getURLResponse(url):
     # TODO Test for validity. e.g. bad request or something.
     return response
 
-def debugOutput(text, level='Debug', force=False):
+def debugOutput(text, level='Debug', force=False, ret=False):
+    """
+    Show debug info.
+    """
+    if ret == True:
+        endstring = '\n'
+    else:
+        endstring = ''
+
     try:
         result = debug_output
-    except:
-        return
-    if debug_output == True or force == True:
-        print('[{0}]'.format(level.upper()), text, end='\n', sep=' ', flush=True, file=sys.stderr)
+    except NameError:
+        debug_output = False
+    if force == True or debug_output == True:
+        print('{1}[{0}]'.format(level.upper(), endstring), text, end='\n', sep=' ', flush=True, file=sys.stderr)
 
 # ######### SQLite3 Functions #####################
 
@@ -182,7 +190,49 @@ def updateBoardPost(boardname, url, conn, auth):
         posttime_hex = hex(posttimelist[0])[2:].upper()
         nexturl = url.format(bname=boardname, number=('M'+posttime_hex))
         updateBoardPostOnce(boardname, nexturl, conn, auth)
+    print('')
 
+def updateBoardTable(boardname, conn):
+    """
+    Update Statistic for current board.
+
+    Write into `boards` table in the database.
+    """
+    current_cname = BeautifulSoup(requests.get(url_bbsdoc.format(boardname, 1)).text).title.string.split('[')[1].split(']')[0]
+    c = conn.cursor()
+    for i in c.execute('SELECT COUNT(*) FROM {0};'.format(boardname)):
+        break
+    if i == None:
+        raise Exception('SQL Query Failed in updateBoardTable()!')
+    current_postnumber = i[0]
+    i = None
+    for i in c.execute('SELECT MAX(`time`) FROM {0};'.format(boardname)):
+        break
+    if i == None:
+        raise Exception('SQL Query Failed in updateBoardTable()!')
+    current_finalpost = i[0]
+    i = None
+    for i in c.execute('SELECT `name` FROM `boards` WHERE `name` IS ?', (boardname,)):
+        break
+    if i == None:
+        debugOutput('No similar board record found. Will add one.')
+        c.execute('INSERT INTO `boards` (`name`, `cname`, `postnumber`, `finalpost`) VALUES(?, ?, ?, ?);', (boardname, current_cname, current_postnumber, current_finalpost))
+    else:
+        debugOutput('Similar board record found. Updating data.')
+        c.execute('UPDATE `boards` SET `postnumber`=?, `finalpost`=? WHERE `name` IS \'{0}\';'.format(boardname), (current_postnumber, current_finalpost))
+    conn.commit()
+
+def printBoardStatistic(boardname, conn):
+    """
+    Print Statistic for current board.
+    """
+    c = conn.cursor()
+    for i in c.execute('SELECT * FROM `boards` WHERE `name` IS ?', (boardname,)):
+        break
+    if i == None:
+        raise Exception('SQL Query Failed! in printBoardStatistic()')
+    print('name: {0}\ncname: {1}\narchived_posts: {2}\nlatest_post: {3}'.format(i[0], i[1], i[2], i[3]))
+    return
 
 def updateBoardAll(boardname, conn, auth=None, onlytext=False, startwith=1):
     """
@@ -197,16 +247,27 @@ def updateBoardAll(boardname, conn, auth=None, onlytext=False, startwith=1):
     """
     # FIXME auth support
 
-    # Update post info
-    if onlytext == False:
-        print('[Step 1] update board list.')
-        updateBoardInfo(boardname, url="http://bbs.ustc.edu.cn/cgi/bbsdoc?board={0}&start={1}", conn=conn, auth=auth, startwith=startwith)
+    boardname = boardname.lower()
+    try:
+        # Update post info
+        if onlytext == False:
+            print('[Step 1] update board list...')
+            updateBoardInfo(boardname, url=url_bbsdoc, conn=conn, auth=auth, startwith=startwith)
+            print('')
 
-    # Update post data
-    print('[Step 2] update board text.')
-    updateBoardPost(boardname, url="http://bbs.ustc.edu.cn/cgi/bbscon?bn={bname}&fn={number}", conn=conn, auth=auth)
+        # Update post data
+        print('[Step 2] update board text...')
+        updateBoardPost(boardname, url=url_bbscon, conn=conn, auth=auth)
+    except:
+        debugOutput('An Exception was caught.', force=True, level='Error', ret=True)
+        raise
+    finally:
+        print('[Step 3] update boards table...')
+        updateBoardTable(boardname, conn)
+        printBoardStatistic(boardname, conn)
+        conn.commit()
 
-    print("All Done.")
+    print("\nAll Done.")
     return True
 
 
