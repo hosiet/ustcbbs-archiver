@@ -14,6 +14,7 @@ from .Database import *
 import requests, re, sys, os, sqlite3, time, argparse
 from bs4 import BeautifulSoup
 from html.parser import HTMLParser
+import time
 
 def printCopyrightInfo():
     print("USTCBBS Archiver v0.1 [dev]")
@@ -231,7 +232,7 @@ def printBoardStatistic(boardname, conn):
         break
     if i == None:
         raise Exception('SQL Query Failed! in printBoardStatistic()')
-    print('name: {0}\ncname: {1}\narchived_posts: {2}\nlatest_post: {3}'.format(i[0], i[1], i[2], i[3]))
+    print('name: {0}\ncname: {1}\narchived_posts: {2}\nlatest_post: {3}\nlatest_post_time: {4}'.format(i[0], i[1], i[2], i[3], time.strftime("%a, %d %b %Y %H:%M:%S %z", time.localtime(i[3]))))
     return
 
 def updateBoardAll(boardname, conn, auth=None, onlytext=False, startwith=1):
